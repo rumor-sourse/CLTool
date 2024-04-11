@@ -1,10 +1,9 @@
-// Command screenshot is a chromedp example demonstrating how to take a
-// screenshot of a specific element and of the entire browser viewport.
 package main
 
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/chromedp/chromedp"
 	"log"
 	"net/http"
@@ -14,17 +13,29 @@ import (
 )
 
 func main() {
-	// 获取url
-	var url string
+	// 获取url 和 proxy
+	var url, proxy string
 	flag.StringVar(&url, "url", "", "URL to capture screenshot")
+	flag.StringVar(&proxy, "proxy", "", "Proxy server address")
 	flag.Parse()
 
 	if url == "" {
 		log.Fatal("URL must be provided")
 	}
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", true),
+		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.WindowSize(1920, 1080),
+	)
 
+	if proxy != "" {
+		opts = append(opts, chromedp.ProxyServer(proxy))
+	}
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
 	// 创建context
-	ctx, cancel := chromedp.NewContext(context.Background())
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
 	defer cancel()
 
 	//	图片存储的位置
@@ -45,7 +56,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
 
 	html := `<!DOCTYPE html>
 <html>
@@ -96,6 +106,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = file.Close()
+	if err != nil {
+		return
+	}
 	//第二次截图
 	go screen(ctx, "http://localhost:3000/template.html")
 	fs := http.FileServer(http.Dir("."))
@@ -113,10 +127,9 @@ func main() {
 
 	// 在10秒后关闭服务器
 	time.AfterFunc(10*time.Second, func() {
-		// 创建一个有超时的上下文，以便gracefully关闭服务器
+		// 创建一个有超时的上下文，以便关闭服务器
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-
 		if err := srv.Shutdown(ctx); err != nil {
 			// 如果关闭服务器失败，则打印错误
 			log.Printf("Server Shutdown: %v", err)
@@ -150,4 +163,13 @@ func screen(ctx context.Context, url string) {
 	}
 
 	log.Printf("wrote Screenshot.png")
+	//删除中间文件
+	err := os.Remove("fullScreenshot.png")
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = os.Remove("template.html")
+	if err != nil {
+		fmt.Println(err)
+	}
 }
