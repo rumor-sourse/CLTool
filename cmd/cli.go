@@ -126,7 +126,7 @@ func main() {
 	}()
 
 	// 在10秒后关闭服务器
-	time.AfterFunc(10*time.Second, func() {
+	time.AfterFunc(3*time.Second, func() {
 		// 创建一个有超时的上下文，以便关闭服务器
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -151,7 +151,7 @@ func fullScreenshot(url string, quality int, res *[]byte) chromedp.Tasks {
 	}
 }
 func screen(ctx context.Context, url string) {
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 	var buf []byte
 	// 截图
 	if err := chromedp.Run(ctx, fullScreenshot(url, 90, &buf)); err != nil {
